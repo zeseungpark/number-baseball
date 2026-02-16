@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Number Baseball</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="game-container">
+        <header>
+            <h1>Number Baseball</h1>
+            <div class="header-controls">
+                <div class="points-display glass-panel">
+                    <span class="label">PTS</span>
+                    <span class="value" id="current-points">0</span>
+                </div>
+                <button id="rules-btn" class="icon-btn" aria-label="게임 규칙">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="main-layout">
+            <div class="game-board">
+                <section class="game-status glass-panel">
+                    <div class="status-item">
+                        <span class="label">남은 시도</span>
+                        <span class="value" id="attempts-left">20</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">결과</span>
+                        <span class="value" id="last-result">-</span>
+                    </div>
+                </section>
+
+                <div id="event-notification" class="event-notification glass-panel hidden">
+                    <span class="event-icon">⚠️</span>
+                    <span id="event-message">악당이 숫자를 변경했습니다!</span>
+                    <button id="notif-close-btn" class="notif-close-btn" aria-label="닫기">×</button>
+                </div>
+
+                <section class="input-area glass-panel">
+                    <div class="input-display" id="input-display">
+                        <div class="digit-box" data-index="0"></div>
+                        <div class="digit-box" data-index="1"></div>
+                        <div class="digit-box" data-index="2"></div>
+                    </div>
+
+                    <div class="actions-row">
+                        <button id="hint-btn" class="hint-btn">
+                            <span class="icon">💡</span> 힌트 (50P)
+                        </button>
+                    </div>
+
+                    <div class="keypad">
+                        <button class="key" data-key="1">1</button>
+                        <button class="key" data-key="2">2</button>
+                        <button class="key" data-key="3">3</button>
+                        <button class="key" data-key="4">4</button>
+                        <button class="key" data-key="5">5</button>
+                        <button class="key" data-key="6">6</button>
+                        <button class="key" data-key="7">7</button>
+                        <button class="key" data-key="8">8</button>
+                        <button class="key" data-key="9">9</button>
+                        <button class="key action-key" data-key="clear">CLR</button>
+                        <button class="key" data-key="0">0</button>
+                        <button class="key action-key" data-key="enter">GO</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Mobile History Toggle Button -->
+            <button id="history-toggle-btn" class="history-toggle-btn glass-panel">
+                📋 기록 보기 (<span id="history-count">0</span>)
+            </button>
+
+            <section id="history-panel" class="history-log glass-panel">
+                <div class="history-header">
+                    <h2>기록</h2>
+                    <button id="history-close-btn" class="history-close-btn" aria-label="닫기">×</button>
+                </div>
+                <div id="history-list" class="history-list">
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Difficulty Selection Modal -->
+    <div id="difficulty-modal" class="modal">
+        <div class="modal-content glass-panel difficulty-content">
+            <h2>⚾ 난이도 선택</h2>
+            <p class="difficulty-desc">악당의 습격 횟수가 달라집니다!</p>
+            <div class="difficulty-grid">
+                <button class="difficulty-btn beginner" data-difficulty="beginner" data-min="0" data-max="1">
+                    <span class="diff-emoji">😊</span>
+                    <span class="diff-name">초급자</span>
+                    <span class="diff-detail">악당 습격 0~1회</span>
+                </button>
+                <button class="difficulty-btn intermediate" data-difficulty="intermediate" data-min="0" data-max="2">
+                    <span class="diff-emoji">😎</span>
+                    <span class="diff-name">중급자</span>
+                    <span class="diff-detail">악당 습격 0~2회</span>
+                </button>
+                <button class="difficulty-btn advanced" data-difficulty="advanced" data-min="1" data-max="3">
+                    <span class="diff-emoji">🔥</span>
+                    <span class="diff-name">상급자</span>
+                    <span class="diff-detail">악당 습격 1~3회</span>
+                </button>
+                <button class="difficulty-btn expert" data-difficulty="expert" data-min="2" data-max="5">
+                    <span class="diff-emoji">💀</span>
+                    <span class="diff-name">최상급자</span>
+                    <span class="diff-detail">악당 습격 2~5회</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rules Modal -->
+    <div id="rules-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <h2>게임 규칙</h2>
+            <p>1. 0~9 사이의 서로 다른 숫자 3개를 맞추세요.</p>
+            <p>2. 숫자와 위치가 모두 맞으면 <strong class="strike">스트라이크</strong></p>
+            <p>3. 숫자는 맞지만 위치가 틀리면 <strong class="ball">볼</strong></p>
+            <p>4. 20번의 시도 안에 숫자를 찾아내세요!</p>
+            <button class="close-btn">닫기</button>
+        </div>
+    </div>
+
+    <!-- Game Over / Win Modal -->
+    <div id="end-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <h2 id="end-title">게임 종료</h2>
+            <p id="end-message">아쉽네요!</p>
+            <button id="restart-btn" class="primary-btn">다시 시작</button>
+        </div>
+    </div>
+
+    <!-- Hint Modal -->
+    <div id="hint-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <h2>💡 힌트</h2>
+            <p id="hint-message" class="hint-text"></p>
+            <button id="close-hint-btn" class="primary-btn">닫기</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
