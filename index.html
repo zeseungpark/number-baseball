@@ -32,29 +32,41 @@
         </header>
 
         <main class="main-layout">
-            <div class="game-board">
-                <section class="game-status glass-panel">
-                    <div class="status-item">
-                        <span class="label">남은 시도</span>
-                        <span class="value" id="attempts-left">20</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">결과</span>
-                        <span class="value" id="last-result">-</span>
-                    </div>
-                </section>
-
-                <div id="event-notification" class="event-notification glass-panel hidden">
-                    <span class="event-icon">⚠️</span>
-                    <span id="event-message">악당이 숫자를 변경했습니다!</span>
-                    <button id="notif-close-btn" class="notif-close-btn" aria-label="닫기">×</button>
+            <!-- Game Status Bar -->
+            <section class="game-status glass-panel">
+                <div class="status-item">
+                    <span class="label">남은 시도</span>
+                    <span class="value" id="attempts-left">20</span>
                 </div>
+                <div class="status-item">
+                    <span class="label">결과</span>
+                    <span class="value" id="last-result">-</span>
+                </div>
+            </section>
 
+            <div id="event-notification" class="event-notification glass-panel hidden">
+                <span class="event-icon">⚠️</span>
+                <span id="event-message">악당이 숫자를 변경했습니다!</span>
+                <button id="notif-close-btn" class="notif-close-btn" aria-label="닫기">×</button>
+            </div>
+
+            <!-- History List (Main Area) -->
+            <section class="history-area">
+                <div id="history-empty" class="history-empty">
+                    <div class="empty-icon">⚾</div>
+                    <p class="empty-title">숫자 3개를 추리하세요!</p>
+                    <p class="empty-desc">0~9 사이 서로 다른 숫자 3개를 맞추면 승리합니다.<br>아래 버튼을 눌러 첫 번째 숫자를 입력하세요.</p>
+                </div>
+                <div id="history-list" class="history-list"></div>
+            </section>
+
+            <!-- Desktop: Keypad always visible -->
+            <div class="desktop-keypad-area">
                 <section class="input-area glass-panel">
-                    <div class="input-display" id="input-display">
-                        <div class="digit-box" data-index="0"></div>
-                        <div class="digit-box" data-index="1"></div>
-                        <div class="digit-box" data-index="2"></div>
+                    <div class="input-display" id="desktop-input-display">
+                        <div class="digit-box desktop-digit" data-index="0"></div>
+                        <div class="digit-box desktop-digit" data-index="1"></div>
+                        <div class="digit-box desktop-digit" data-index="2"></div>
                     </div>
 
                     <div class="actions-row">
@@ -63,7 +75,7 @@
                         </button>
                     </div>
 
-                    <div class="keypad">
+                    <div class="keypad desktop-keypad">
                         <button class="key" data-key="1">1</button>
                         <button class="key" data-key="2">2</button>
                         <button class="key" data-key="3">3</button>
@@ -75,25 +87,51 @@
                         <button class="key" data-key="9">9</button>
                         <button class="key action-key" data-key="clear">CLR</button>
                         <button class="key" data-key="0">0</button>
-                        <button class="key action-key" data-key="enter">GO</button>
+                        <button class="key action-key" data-key="backspace">⌫</button>
                     </div>
                 </section>
             </div>
 
-            <!-- Mobile History Toggle Button -->
-            <button id="history-toggle-btn" class="history-toggle-btn glass-panel">
-                📋 기록 보기 (<span id="history-count">0</span>)
+            <!-- Mobile: Play Button (fixed bottom) -->
+            <button id="play-btn" class="play-btn">
+                <span class="play-btn-icon">🏏</span>
+                <span class="play-btn-text">플레이</span>
             </button>
-
-            <section id="history-panel" class="history-log glass-panel">
-                <div class="history-header">
-                    <h2>기록</h2>
-                    <button id="history-close-btn" class="history-close-btn" aria-label="닫기">×</button>
-                </div>
-                <div id="history-list" class="history-list">
-                </div>
-            </section>
         </main>
+    </div>
+
+    <!-- Mobile: Keypad Bottom Sheet -->
+    <div id="keypad-overlay" class="keypad-overlay hidden"></div>
+    <div id="keypad-sheet" class="keypad-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <div class="sheet-prev-result" id="sheet-prev-result"></div>
+            <button id="hint-btn-mobile" class="hint-btn">
+                <span class="icon">💡</span> 힌트 (50P)
+            </button>
+        </div>
+        <div class="input-display" id="input-display">
+            <div class="digit-box" data-index="0"></div>
+            <div class="digit-box" data-index="1"></div>
+            <div class="digit-box" data-index="2"></div>
+        </div>
+        <div class="sheet-result-feedback hidden" id="result-feedback">
+            <span id="result-feedback-text"></span>
+        </div>
+        <div class="keypad">
+            <button class="key" data-key="1">1</button>
+            <button class="key" data-key="2">2</button>
+            <button class="key" data-key="3">3</button>
+            <button class="key" data-key="4">4</button>
+            <button class="key" data-key="5">5</button>
+            <button class="key" data-key="6">6</button>
+            <button class="key" data-key="7">7</button>
+            <button class="key" data-key="8">8</button>
+            <button class="key" data-key="9">9</button>
+            <button class="key action-key" data-key="clear">CLR</button>
+            <button class="key" data-key="0">0</button>
+            <button class="key action-key" data-key="backspace">⌫</button>
+        </div>
     </div>
 
     <!-- Difficulty Selection Modal -->

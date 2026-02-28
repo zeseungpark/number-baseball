@@ -6,6 +6,7 @@ class NumberBaseball {
         this.currentInput = [];
         this.history = [];
         this.isGameOver = false;
+        this.isSubmitting = false;
 
         // Game Settings
         this.hintCost = 50;
@@ -15,24 +16,51 @@ class NumberBaseball {
         // Villain attack settings (fixed count per game)
         this.villainAttackMin = 0;
         this.villainAttackMax = 1;
-        this.villainAttackTurns = []; // Which turns the attacks happen
+        this.villainAttackTurns = [];
+
+        // Responsive mode
+        this.isMobile = window.innerWidth < 768;
 
         // Load saved points from cookie, or use initial points
         this.points = this.loadPoints();
 
         // DOM Elements
         this.elements = {
+            // Mobile keypad sheet
             inputDisplay: document.getElementById('input-display'),
-            digitBoxes: document.querySelectorAll('.digit-box'),
-            keys: document.querySelectorAll('.key'),
+            digitBoxes: document.querySelectorAll('#input-display .digit-box'),
+            keypadSheet: document.getElementById('keypad-sheet'),
+            keypadOverlay: document.getElementById('keypad-overlay'),
+            keys: document.querySelectorAll('#keypad-sheet .key'),
+            resultFeedback: document.getElementById('result-feedback'),
+            resultFeedbackText: document.getElementById('result-feedback-text'),
+            sheetPrevResult: document.getElementById('sheet-prev-result'),
+
+            // Desktop keypad
+            desktopInputDisplay: document.getElementById('desktop-input-display'),
+            desktopDigitBoxes: document.querySelectorAll('#desktop-input-display .digit-box'),
+            desktopKeys: document.querySelectorAll('.desktop-keypad .key'),
+
+            // History
             historyList: document.getElementById('history-list'),
+            historyEmpty: document.getElementById('history-empty'),
+
+            // Status
             attemptsLeft: document.getElementById('attempts-left'),
             lastResult: document.getElementById('last-result'),
             currentPoints: document.getElementById('current-points'),
+
+            // Buttons
             hintBtn: document.getElementById('hint-btn'),
+            hintBtnMobile: document.getElementById('hint-btn-mobile'),
+            playBtn: document.getElementById('play-btn'),
+
+            // Notifications
             eventNotification: document.getElementById('event-notification'),
             eventMessage: document.getElementById('event-message'),
             notifCloseBtn: document.getElementById('notif-close-btn'),
+
+            // Modals
             hintModal: document.getElementById('hint-modal'),
             hintMessage: document.getElementById('hint-message'),
             closeHintBtn: document.getElementById('close-hint-btn'),
@@ -43,11 +71,7 @@ class NumberBaseball {
             endMessage: document.getElementById('end-message'),
             restartBtn: document.getElementById('restart-btn'),
             closeBtn: document.querySelector('.close-btn'),
-            // History toggle (mobile)
-            historyPanel: document.getElementById('history-panel'),
-            historyToggleBtn: document.getElementById('history-toggle-btn'),
-            historyCloseBtn: document.getElementById('history-close-btn'),
-            historyCount: document.getElementById('history-count'),
+
             // Difficulty
             difficultyModal: document.getElementById('difficulty-modal'),
             difficultyBtns: document.querySelectorAll('.difficulty-btn'),
@@ -60,10 +84,8 @@ class NumberBaseball {
 
     init() {
         this.bindEvents();
-        // Display loaded points
         this.elements.currentPoints.textContent = this.points;
         this.updateHintButton();
-        // Show difficulty selection on load
         this.showDifficultyModal();
     }
 
@@ -83,13 +105,11 @@ class NumberBaseball {
         const count = this.villainAttackMin +
             Math.floor(Math.random() * (this.villainAttackMax - this.villainAttackMin + 1));
 
-        // Pick random unique turns (from turn 2 onwards, so first turn is always safe)
         const possibleTurns = [];
         for (let i = 2; i <= this.maxAttempts; i++) {
             possibleTurns.push(i);
         }
 
-        // Shuffle and pick
         this.villainAttackTurns = [];
         for (let i = 0; i < count && possibleTurns.length > 0; i++) {
             const idx = Math.floor(Math.random() * possibleTurns.length);
@@ -106,6 +126,7 @@ class NumberBaseball {
         this.currentInput = [];
         this.history = [];
         this.isGameOver = false;
+        this.isSubmitting = false;
 
         // Schedule villain attacks for this game
         this.scheduleVillainAttacks();
@@ -117,8 +138,17 @@ class NumberBaseball {
         this.elements.lastResult.textContent = '-';
         this.elements.endModal.classList.add('hidden');
         this.elements.eventNotification.classList.add('hidden');
-        this.elements.historyPanel.classList.remove('open');
-        this.updateHistoryCount();
+
+        // Show empty state
+        this.elements.historyEmpty.classList.remove('hidden');
+
+        // Hide result feedback
+        this.elements.resultFeedback.classList.add('hidden');
+
+        // Update previous result display
+        this.updateSheetPrevResult();
+
+        // Player taps "Play" button to open keypad themselves
 
         console.log("Secret Code (For Debug):", this.targetNumbers.join(''));
     }
@@ -146,35 +176,38 @@ class NumberBaseball {
             });
         });
 
-        // Keypad clicks
+        // Mobile keypad clicks
         this.elements.keys.forEach(key => {
             key.addEventListener('click', () => {
-                if (this.isGameOver) return;
-                const keyValue = key.dataset.key;
-                if (keyValue === 'enter') {
-                    this.submitGuess();
-                } else if (keyValue === 'clear') {
-                    this.removeDigit();
-                } else {
-                    this.addDigit(parseInt(keyValue));
-                }
+                if (this.isGameOver || this.isSubmitting) return;
+                this.handleKeyPress(key.dataset.key);
+            });
+        });
+
+        // Desktop keypad clicks
+        this.elements.desktopKeys.forEach(key => {
+            key.addEventListener('click', () => {
+                if (this.isGameOver || this.isSubmitting) return;
+                this.handleKeyPress(key.dataset.key);
             });
         });
 
         // Keyboard support
         document.addEventListener('keydown', (e) => {
-            if (this.isGameOver) return;
+            if (this.isGameOver || this.isSubmitting) return;
             if (e.key >= '0' && e.key <= '9') {
-                this.addDigit(parseInt(e.key));
+                this.handleKeyPress(e.key);
             } else if (e.key === 'Backspace') {
-                this.removeDigit();
-            } else if (e.key === 'Enter') {
-                this.submitGuess();
+                this.handleKeyPress('backspace');
             }
         });
 
-        // Hint Button
+        // Hint Buttons (desktop + mobile)
         this.elements.hintBtn.addEventListener('click', () => {
+            this.buyHint();
+        });
+
+        this.elements.hintBtnMobile.addEventListener('click', () => {
             this.buyHint();
         });
 
@@ -197,20 +230,61 @@ class NumberBaseball {
             this.elements.rulesModal.classList.add('hidden');
         });
 
-        // Restart Button — show difficulty selection again
+        // Restart Button
         this.elements.restartBtn.addEventListener('click', () => {
             this.elements.endModal.classList.add('hidden');
             this.showDifficultyModal();
         });
 
-        // History Toggle (Mobile)
-        this.elements.historyToggleBtn.addEventListener('click', () => {
-            this.elements.historyPanel.classList.add('open');
+        // Play Button (Mobile) → open keypad sheet
+        this.elements.playBtn.addEventListener('click', () => {
+            this.openKeypad();
         });
 
-        this.elements.historyCloseBtn.addEventListener('click', () => {
-            this.elements.historyPanel.classList.remove('open');
+        // Overlay click → close keypad sheet
+        this.elements.keypadOverlay.addEventListener('click', () => {
+            this.closeKeypad();
         });
+
+        // Responsive mode tracking
+        window.addEventListener('resize', () => {
+            this.isMobile = window.innerWidth < 768;
+        });
+    }
+
+    handleKeyPress(keyValue) {
+        if (keyValue === 'clear') {
+            this.clearInput();
+        } else if (keyValue === 'backspace') {
+            this.removeDigit();
+        } else if (keyValue === 'enter') {
+            // Kept for keyboard only
+            this.submitGuess();
+        } else {
+            this.addDigit(parseInt(keyValue));
+        }
+    }
+
+    // ─── Keypad Bottom Sheet ─────────────────────────
+
+    openKeypad() {
+        this.currentInput = [];
+        this.updateInputDisplay();
+        this.elements.resultFeedback.classList.add('hidden');
+        this.elements.keypadSheet.classList.add('open');
+        this.elements.keypadOverlay.classList.remove('hidden');
+        this.elements.playBtn.classList.add('hidden');
+        this.updateDisabledKeys();
+    }
+
+    closeKeypad() {
+        this.elements.keypadSheet.classList.remove('open');
+        this.elements.keypadOverlay.classList.add('hidden');
+        if (!this.isGameOver) {
+            this.elements.playBtn.classList.remove('hidden');
+        }
+        this.currentInput = [];
+        this.updateInputDisplay();
     }
 
     // ─── Points System (Cookie-Persisted) ─────────────
@@ -220,7 +294,6 @@ class NumberBaseball {
         if (saved !== null) {
             return parseInt(saved, 10);
         }
-        // First time ever: give initial points and save
         this.setCookie('nb_points', this.initialPoints, 365);
         return this.initialPoints;
     }
@@ -230,12 +303,12 @@ class NumberBaseball {
         if (this.points < 0) this.points = 0;
         this.elements.currentPoints.textContent = this.points;
         this.updateHintButton();
-        // Persist to cookie
         this.setCookie('nb_points', this.points, 365);
     }
 
     updateHintButton() {
         this.elements.hintBtn.disabled = this.points < this.hintCost;
+        this.elements.hintBtnMobile.disabled = this.points < this.hintCost;
     }
 
     setCookie(name, value, days) {
@@ -258,7 +331,6 @@ class NumberBaseball {
         const randomIndex = Math.floor(Math.random() * 3);
         const number = this.targetNumbers[randomIndex];
 
-        // Show Hint Modal
         this.elements.hintMessage.textContent = `정답에 숫자 '${number}' 가 포함되어 있습니다!`;
         this.elements.hintModal.classList.remove('hidden');
     }
@@ -276,7 +348,21 @@ class NumberBaseball {
         this.elements.eventNotification.classList.remove('hidden');
         this.elements.eventMessage.textContent = "😈 악당의 습격! 숫자 하나가 은밀하게 바뀌었습니다.";
 
+        // Add villain attack to history
+        this.addVillainHistoryItem();
+
         console.log("Secret Code Changed to:", this.targetNumbers.join(''));
+    }
+
+    addVillainHistoryItem() {
+        const item = document.createElement('div');
+        item.className = 'history-item villain-event';
+        item.innerHTML = `
+            <span class="villain-event-icon">😈</span>
+            <span class="villain-event-text">악당의 습격! 숫자가 바뀌었습니다</span>
+        `;
+        this.elements.historyList.appendChild(item);
+        this.scrollHistoryToBottom();
     }
 
     // ─── Input Handling ───────────────────────────────
@@ -289,6 +375,15 @@ class NumberBaseball {
             }
             this.currentInput.push(digit);
             this.updateInputDisplay();
+            this.updateDisabledKeys();
+
+            // Auto-submit on 3rd digit
+            if (this.currentInput.length === 3) {
+                this.isSubmitting = true;
+                setTimeout(() => {
+                    this.submitGuess();
+                }, 400);
+            }
         }
     }
 
@@ -296,10 +391,18 @@ class NumberBaseball {
         if (this.currentInput.length > 0) {
             this.currentInput.pop();
             this.updateInputDisplay();
+            this.updateDisabledKeys();
         }
     }
 
+    clearInput() {
+        this.currentInput = [];
+        this.updateInputDisplay();
+        this.updateDisabledKeys();
+    }
+
     updateInputDisplay() {
+        // Update mobile digit boxes
         this.elements.digitBoxes.forEach((box, index) => {
             if (index < this.currentInput.length) {
                 box.textContent = this.currentInput[index];
@@ -308,17 +411,49 @@ class NumberBaseball {
                 box.textContent = '';
                 box.classList.remove('filled', 'active');
             }
-            // Highlight the next empty box
+            if (index === this.currentInput.length) {
+                box.classList.add('active');
+            }
+        });
+
+        // Update desktop digit boxes
+        this.elements.desktopDigitBoxes.forEach((box, index) => {
+            if (index < this.currentInput.length) {
+                box.textContent = this.currentInput[index];
+                box.classList.add('filled', 'active');
+            } else {
+                box.textContent = '';
+                box.classList.remove('filled', 'active');
+            }
             if (index === this.currentInput.length) {
                 box.classList.add('active');
             }
         });
     }
 
+    updateDisabledKeys() {
+        const allKeys = [...this.elements.keys, ...this.elements.desktopKeys];
+        allKeys.forEach(key => {
+            const keyValue = key.dataset.key;
+            if (keyValue >= '0' && keyValue <= '9') {
+                const digit = parseInt(keyValue);
+                if (this.currentInput.includes(digit)) {
+                    key.classList.add('disabled');
+                } else {
+                    key.classList.remove('disabled');
+                }
+            }
+        });
+    }
+
     shakeInput() {
-        const inputArea = this.elements.inputDisplay;
-        inputArea.classList.add('shake');
-        setTimeout(() => inputArea.classList.remove('shake'), 300);
+        const inputs = [this.elements.inputDisplay, this.elements.desktopInputDisplay];
+        inputs.forEach(el => {
+            if (el) {
+                el.classList.add('shake');
+                setTimeout(() => el.classList.remove('shake'), 300);
+            }
+        });
     }
 
     // ─── Game Logic ───────────────────────────────────
@@ -326,25 +461,69 @@ class NumberBaseball {
     submitGuess() {
         if (this.currentInput.length !== 3) {
             this.shakeInput();
+            this.isSubmitting = false;
             return;
         }
 
         const guess = [...this.currentInput];
-        this.processTurn(guess);
+        const result = this.processTurn(guess);
 
-        this.currentInput = [];
-        this.updateInputDisplay();
+        // Show result feedback on mobile sheet
+        if (this.isMobile) {
+            this.showResultFeedback(result);
+            // Close keypad after showing feedback
+            setTimeout(() => {
+                this.closeKeypad();
+                this.isSubmitting = false;
+            }, result.isWin ? 1200 : 800);
+        } else {
+            this.currentInput = [];
+            this.updateInputDisplay();
+            this.updateDisabledKeys();
+            this.isSubmitting = false;
+        }
+    }
+
+    showResultFeedback(result) {
+        const fb = this.elements.resultFeedback;
+        const txt = this.elements.resultFeedbackText;
+
+        // Remove previous classes
+        fb.className = 'sheet-result-feedback';
+
+        if (result.isWin) {
+            fb.classList.add('result-win');
+            txt.textContent = '🎉 정답! 3S';
+        } else if (result.strikes === 0 && result.balls === 0) {
+            fb.classList.add('result-out');
+            txt.textContent = '😢 OUT';
+        } else {
+            let text = '';
+            if (result.strikes > 0) text += `${result.strikes}S `;
+            if (result.balls > 0) text += `${result.balls}B`;
+            txt.textContent = text;
+            if (result.strikes > 0) {
+                fb.classList.add('result-strike');
+            } else {
+                fb.classList.add('result-ball');
+            }
+        }
+
+        fb.classList.remove('hidden');
     }
 
     processTurn(guess) {
         this.currentAttempts++;
         const { strikes, balls } = this.calculateResult(guess);
+        const isWin = strikes === 3;
 
         this.addHistoryItem(guess, strikes, balls);
         this.elements.attemptsLeft.textContent = this.maxAttempts - this.currentAttempts;
-        this.updateHistoryCount();
 
-        if (strikes === 3) {
+        // Hide empty state
+        this.elements.historyEmpty.classList.add('hidden');
+
+        if (isWin) {
             this.endGame(true);
         } else if (this.currentAttempts >= this.maxAttempts) {
             this.endGame(false);
@@ -363,6 +542,20 @@ class NumberBaseball {
                 this.triggerVillainAttack();
             }
         }
+
+        // Update previous result text for bottom sheet
+        this.updateSheetPrevResult();
+
+        return { strikes, balls, isWin };
+    }
+
+    updateSheetPrevResult() {
+        if (this.currentAttempts === 0) {
+            this.elements.sheetPrevResult.innerHTML = '';
+            return;
+        }
+        const lastResult = this.elements.lastResult.textContent;
+        this.elements.sheetPrevResult.innerHTML = `직전 결과: <span class="result-highlight">${lastResult}</span>`;
     }
 
     calculateResult(guess) {
@@ -398,27 +591,43 @@ class NumberBaseball {
             <div class="history-result">${resultHtml}</div>
         `;
 
-        this.elements.historyList.prepend(item);
+        // Append (newest at bottom, like a chat)
+        this.elements.historyList.appendChild(item);
+        this.scrollHistoryToBottom();
     }
 
-    updateHistoryCount() {
-        this.elements.historyCount.textContent = this.currentAttempts;
+    scrollHistoryToBottom() {
+        const historyArea = this.elements.historyList.closest('.history-area');
+        if (historyArea) {
+            setTimeout(() => {
+                historyArea.scrollTop = historyArea.scrollHeight;
+            }, 50);
+        }
     }
 
     // ─── End Game ─────────────────────────────────────
 
     endGame(isWin) {
         this.isGameOver = true;
-        this.elements.endModal.classList.remove('hidden');
 
-        if (isWin) {
-            this.addPoints(this.winReward);
-            this.elements.endTitle.textContent = "🎉 Victory!";
-            this.elements.endMessage.textContent = `축하합니다! ${this.currentAttempts}번 만에 맞추셨네요. (+${this.winReward}P)`;
-        } else {
-            this.elements.endTitle.textContent = "Game Over";
-            this.elements.endMessage.textContent = `아쉽게도 기회를 모두 소진하셨습니다. 정답은 ${this.targetNumbers.join('')} 이었습니다.`;
-        }
+        // Hide play button
+        this.elements.playBtn.classList.add('hidden');
+
+        // Show end modal after a delay if on mobile sheet
+        const delay = this.isMobile && this.elements.keypadSheet.classList.contains('open') ? 1400 : 200;
+
+        setTimeout(() => {
+            this.elements.endModal.classList.remove('hidden');
+
+            if (isWin) {
+                this.addPoints(this.winReward);
+                this.elements.endTitle.textContent = "🎉 Victory!";
+                this.elements.endMessage.textContent = `축하합니다! ${this.currentAttempts}번 만에 맞추셨네요. (+${this.winReward}P)`;
+            } else {
+                this.elements.endTitle.textContent = "Game Over";
+                this.elements.endMessage.textContent = `아쉽게도 기회를 모두 소진하셨습니다. 정답은 ${this.targetNumbers.join('')} 이었습니다.`;
+            }
+        }, delay);
     }
 }
 
